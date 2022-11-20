@@ -123,11 +123,20 @@ int main(int argc, char** argv){
         if(len == 0) break;
         char* seq = in.read_buf;
         
+        vector<int64_t> barcodes_found;
         for(int64_t barcode_idx = 0; barcode_idx < barcodes.size(); barcode_idx++){
             int64_t occurrences = 0;
             occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_border_arrays[barcode_idx]).size();
             occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_rc_border_arrays[barcode_idx]).size();
             barcode_counts[barcode_idx] += occurrences;
+            if(occurrences > 0) barcodes_found.push_back(barcode_idx);
+        }
+
+        if(barcodes_found.size() > 1){
+            cout << "Multiple barcodes in a sequence: " << seq << endl;
+            cout << "^ Had barcodes:";
+            for(int64_t b : barcodes_found) cout << " " << b;
+            cout << endl;
         }
     }
 
