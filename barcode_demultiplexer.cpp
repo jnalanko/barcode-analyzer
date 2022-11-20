@@ -63,14 +63,18 @@ vector<int64_t> get_border_array(const char* P, int64_t P_len){
    return B;
    
 }
- 
-vector<int64_t> kmp(const char* P, int64_t P_len, const char* S, int64_t S_len){
-    auto B = get_border_array(P, P_len);
+
+// P: search pattern
+// P_len: search pattern length
+// S: string to search from
+// S_len the length of S
+// border_array: border array of P
+vector<int64_t> kmp(const char* P, int64_t P_len, const char* S, int64_t S_len, const vector<int64_t>& border_array){
     int64_t length = 0;
     vector<int64_t> occurrences;
     for(int64_t i = 0; i < S_len; i++){
         while(length == P_len || P[length] != S[i]){
-            length = B[length];
+            length = border_array[length];
             if(length == 0) break;
         }
         if(S[i] == P[length]) length++;
@@ -104,6 +108,12 @@ int main(int argc, char** argv){
     for(int64_t i = 0; i < barcodes_rc.size(); i++) 
         rc_c_string(barcodes_rc[i].data(), barcodes_rc[i].size());
 
+    vector<vector<int64_t> > barcode_border_arrays;
+    for(const string& P : barcodes) barcode_border_arrays.push_back(get_border_array(P.c_str(), P.size()));
+
+    vector<vector<int64_t> > barcode_rc_border_arrays;
+    for(const string& P : barcodes_rc) barcode_rc_border_arrays.push_back(get_border_array(P.c_str(), P.size()));
+
     SeqIO::Reader<> in(seq_file);
 
     vector<int64_t> barcode_counts(barcodes.size());
@@ -115,8 +125,8 @@ int main(int argc, char** argv){
         
         for(int64_t barcode_idx = 0; barcode_idx < barcodes.size(); barcode_idx++){
             int64_t occurrences = 0;
-            occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len).size();
-            occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len).size();
+            occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_border_arrays[barcode_idx]).size();
+            occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_rc_border_arrays[barcode_idx]).size();
             barcode_counts[barcode_idx] += occurrences;
         }
     }
