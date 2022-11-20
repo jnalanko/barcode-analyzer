@@ -46,27 +46,7 @@ vector<string> read_lines(string filename){
     return lines;
 }
 
-int main(int argc, char** argv){
-
-    cxxopts::Options opts(argv[0], "Barcode demultiplexing");
-
-    opts.add_options()
-        ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
-        ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
-        ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
-        ("h,help", "Print usage")
-    ;
-
-    auto opts_parsed = opts.parse(argc, argv);
-
-    if (argc == 1 || opts_parsed.count("help")){
-        std::cerr << opts.help() << std::endl;
-        return 1;
-    }
-
-    string seq_file = opts_parsed["i"].as<string>();
-    string barcode_file = opts_parsed["b"].as<string>();
-    bool verbose = opts_parsed["v"].as<bool>();
+void run(const string& seq_file, const string& barcode_file, ostream& output, bool verbose){
 
     vector<string> barcodes = read_lines(barcode_file);
     int64_t n_barcodes = barcodes.size();
@@ -113,11 +93,11 @@ int main(int argc, char** argv){
             // Multiple distinct barcodes in this sequence
             n_seqs_with_multiple_barcodes++;
             if(verbose){
-                cout << "Mixed barcodes in sequence: " << in.header_buf << "\n";
-                cout << "Found barcodes: ";
+                output << "Mixed barcodes in sequence: " << in.header_buf << "\n";
+                output << "Found barcodes: ";
                 for(int64_t i = 0; i < local_barcodes_found.size(); i++)
-                    cout << (i == 0 ? "" : " ") << local_barcodes_found[i];
-                cout << "\n";
+                    output << (i == 0 ? "" : " ") << local_barcodes_found[i];
+                output << "\n";
             }
         } else{
             // Add local counts to global counts
@@ -132,8 +112,45 @@ int main(int argc, char** argv){
     }
 
     for(int64_t i = 0; i < global_counts.size(); i++){
-        cout << "Barcode " << i << ": " << global_counts[i] << endl;
+        output << "Barcode " << i << ": " << global_counts[i] << endl;
     }
-    cout << "Mixed: " << n_seqs_with_multiple_barcodes << endl;
+    output << "Mixed: " << n_seqs_with_multiple_barcodes << endl;
+}
+
+int main(int argc, char** argv){
+
+    cxxopts::Options opts(argv[0], "Barcode demultiplexing");
+
+    opts.add_options()
+        ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
+        ("o", "Output file. If not given, prints to stdout.", cxxopts::value<string>())
+        ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
+        ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
+        ("h,help", "Print usage")
+    ;
+
+    auto opts_parsed = opts.parse(argc, argv);
+
+    if (argc == 1 || opts_parsed.count("help")){
+        std::cerr << opts.help() << std::endl;
+        return 1;
+    }
+
+    bool to_stdout = false;
+    string seq_file = opts_parsed["i"].as<string>();
+    string barcode_file = opts_parsed["b"].as<string>();
+    string output_file;
+    try{
+        output_file = opts_parsed["o"].as<string>();
+    } catch(cxxopts::exceptions::option_has_no_value& e){
+        to_stdout = true;
+    }
+    bool verbose = opts_parsed["v"].as<bool>();
+
+    if(to_stdout) run(seq_file, barcode_file, cout, verbose);
+    else{
+        ofstream out(output_file);
+        run(seq_file, barcode_file, out, verbose);
+    }
 
 }
