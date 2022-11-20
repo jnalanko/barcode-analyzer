@@ -84,7 +84,7 @@ int main(int argc, char** argv){
 
     SeqIO::Reader<> in(seq_file);
 
-    vector<int64_t> barcode_counts(barcodes.size());
+    vector<int64_t> barcode_counts(n_barcodes);
     vector<int64_t> barcodes_found; // Used only in verbose mode
     while(true){
         int64_t len = in.get_next_read_to_buffer();
@@ -98,7 +98,7 @@ int main(int argc, char** argv){
 
             // The modulo is to map the reverse complement barcodes to the same barcode as the original
             int64_t barcode_idx = x.get_index() % n_barcodes;
-            
+
             barcode_counts[barcode_idx]++;
             if(verbose) barcodes_found.push_back(barcode_idx);
         }
