@@ -2,7 +2,7 @@
 #include <algorithm>
 #include "SeqIO.hh"
 #include "cxxopts.hpp"
-
+#include "aho_corasick.hh"
 
 // Table mapping ascii values of characters to their reverse complements,
 // lower-case to lower case, upper-case to upper-case. Non-ACGT characters
@@ -46,65 +46,6 @@ vector<string> read_lines(string filename){
     return lines;
 }
 
-
-vector<int64_t> get_border_array(const char* P, int64_t P_len){
-    vector<int64_t> B(P_len+1);
-    if(B.size() == 1) return B;
-    for(int64_t L = 2; L <= P_len; L++){
-        int64_t prev_longest = L-1;
-        while(prev_longest != 0){
-            prev_longest = B[prev_longest];
-            if(P[L-1] == P[prev_longest]){
-                B[L] = prev_longest + 1;
-                break;
-            }
-        }
-    }
-   return B;
-   
-}
-
-// P: search pattern
-// P_len: search pattern length
-// S: string to search from
-// S_len the length of S
-// border_array: border array of P
-// Returns the number of matches
-int64_t kmp(const char* P, int64_t P_len, const char* S, int64_t S_len, const vector<int64_t>& border_array){
-    int64_t length = 0;
-    int64_t matches = 0;
-    for(int64_t i = 0; i < S_len; i++){
-        while(length == P_len || P[length] != S[i]){
-            length = border_array[length];
-            if(length == 0) break;
-        }
-        if(S[i] == P[length]) length++;
-        if(length == P_len) matches++;
-    }
-    return matches;
-}
-
-int64_t bit_parallel_matching(const char* P, const int64_t P_len, const char* S, const int64_t S_len){
-    int64_t n_matches = 0;
-    for(int64_t start = 0; start < S_len - P_len + 1; start++){
-        bool good = true;
-        int64_t n_words = P_len/8;
-        for(int64_t w = 0; w < n_words; w++){ // Word-parallel 8 bytes at a time
-            good &= (*reinterpret_cast<const uint64_t*>(P + w*8) == 
-                     *reinterpret_cast<const uint64_t*>(S + start + w*8));
-        }
-
-        // Do the rest
-        if(P_len % 8 != 0){
-            int64_t rem = P_len - n_words*8; // Number of bytes left over
-            good &= *reinterpret_cast<const uint64_t*>(P + n_words*8) >> ((8 - rem)*8) == 
-                    *reinterpret_cast<const uint64_t*>(S + start + n_words*8) >> ((8 - rem)*8);
-        }
-        n_matches += good;
-    }
-    return n_matches;
-}
-
 int main(int argc, char** argv){
 
     cxxopts::Options opts(argv[0], "Barcode demultiplexing");
@@ -128,20 +69,22 @@ int main(int argc, char** argv){
     bool verbose = opts_parsed["v"].as<bool>();
 
     vector<string> barcodes = read_lines(barcode_file);
-    vector<string> barcodes_rc = barcodes;
-    for(int64_t i = 0; i < barcodes_rc.size(); i++) 
-        rc_c_string(barcodes_rc[i].data(), barcodes_rc[i].size());
+    int64_t n_barcodes = barcodes.size();
 
-    vector<vector<int64_t> > barcode_border_arrays;
-    for(const string& P : barcodes) barcode_border_arrays.push_back(get_border_array(P.c_str(), P.size()));
-
-    vector<vector<int64_t> > barcode_rc_border_arrays;
-    for(const string& P : barcodes_rc) barcode_rc_border_arrays.push_back(get_border_array(P.c_str(), P.size()));
+    // Add reverse complements
+    for(int64_t i = 0; i < n_barcodes; i++){
+        string S = barcodes[i];
+        rc_c_string(S.data(), S.size());
+        barcodes.push_back(S);
+    }
+        
+    // Build the Aho-Corasick trie
+    aho_corasick::trie trie;
+    for(const string& B : barcodes) trie.insert(B);
 
     SeqIO::Reader<> in(seq_file);
 
     vector<int64_t> barcode_counts(barcodes.size());
-
     vector<int64_t> barcodes_found; // Used only in verbose mode
     while(true){
         int64_t len = in.get_next_read_to_buffer();
@@ -149,14 +92,15 @@ int main(int argc, char** argv){
         char* seq = in.read_buf;
         
         if(verbose) barcodes_found.clear();    
-        for(int64_t barcode_idx = 0; barcode_idx < barcodes.size(); barcode_idx++){
-            int64_t occurrences = 0;
-            //occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_border_arrays[barcode_idx]);
-            //occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes_rc[barcode_idx].size(), seq, len, barcode_rc_border_arrays[barcode_idx]);
-            occurrences += bit_parallel_matching(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len);
-            occurrences += bit_parallel_matching(barcodes_rc[barcode_idx].c_str(), barcodes_rc[barcode_idx].size(), seq, len);
-            barcode_counts[barcode_idx] += occurrences;
-            if(verbose && occurrences > 0) barcodes_found.push_back(barcode_idx);
+
+        auto AC_result = trie.parse_text(seq);
+        for(auto x : AC_result){
+
+            // The modulo is to map the reverse complement barcodes to the same barcode as the original
+            int64_t barcode_idx = x.get_index() % n_barcodes;
+            
+            barcode_counts[barcode_idx]++;
+            if(verbose) barcodes_found.push_back(barcode_idx);
         }
 
         if(verbose && barcodes_found.size() > 1){
