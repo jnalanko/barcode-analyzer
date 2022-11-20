@@ -25,7 +25,7 @@ static constexpr unsigned char rc_table[256] =
 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255};
 
-char get_rc(char c){
+static constexpr char get_rc(char c){
     return rc_table[(unsigned char)c];
 }
 
@@ -69,18 +69,40 @@ vector<int64_t> get_border_array(const char* P, int64_t P_len){
 // S: string to search from
 // S_len the length of S
 // border_array: border array of P
-vector<int64_t> kmp(const char* P, int64_t P_len, const char* S, int64_t S_len, const vector<int64_t>& border_array){
+// Returns the number of matches
+int64_t kmp(const char* P, int64_t P_len, const char* S, int64_t S_len, const vector<int64_t>& border_array){
     int64_t length = 0;
-    vector<int64_t> occurrences;
+    int64_t matches = 0;
     for(int64_t i = 0; i < S_len; i++){
         while(length == P_len || P[length] != S[i]){
             length = border_array[length];
             if(length == 0) break;
         }
         if(S[i] == P[length]) length++;
-        if(length == P_len) occurrences.push_back(i-P_len+1);
+        if(length == P_len) matches++;
     }
-    return occurrences;
+    return matches;
+}
+
+int64_t bit_parallel_matching(const char* P, const int64_t P_len, const char* S, const int64_t S_len){
+    int64_t n_matches = 0;
+    for(int64_t start = 0; start < S_len - P_len + 1; start++){
+        bool good = true;
+        int64_t n_words = P_len/8;
+        for(int64_t w = 0; w < n_words; w++){ // Word-parallel 8 bytes at a time
+            good &= (*reinterpret_cast<const uint64_t*>(P + w*8) == 
+                     *reinterpret_cast<const uint64_t*>(S + start + w*8));
+        }
+
+        // Do the rest
+        if(P_len % 8 != 0){
+            int64_t rem = P_len - n_words*8; // Number of bytes left over
+            good &= *reinterpret_cast<const uint64_t*>(P + n_words*8) >> ((8 - rem)*8) == 
+                    *reinterpret_cast<const uint64_t*>(S + start + n_words*8) >> ((8 - rem)*8);
+        }
+        n_matches += good;
+    }
+    return n_matches;
 }
 
 int main(int argc, char** argv){
@@ -90,6 +112,7 @@ int main(int argc, char** argv){
     opts.add_options()
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
         ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
+        ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
 
@@ -102,6 +125,7 @@ int main(int argc, char** argv){
 
     string seq_file = opts_parsed["i"].as<string>();
     string barcode_file = opts_parsed["b"].as<string>();
+    bool verbose = opts_parsed["v"].as<bool>();
 
     vector<string> barcodes = read_lines(barcode_file);
     vector<string> barcodes_rc = barcodes;
@@ -118,21 +142,24 @@ int main(int argc, char** argv){
 
     vector<int64_t> barcode_counts(barcodes.size());
 
+    vector<int64_t> barcodes_found; // Used only in verbose mode
     while(true){
         int64_t len = in.get_next_read_to_buffer();
         if(len == 0) break;
         char* seq = in.read_buf;
         
-        vector<int64_t> barcodes_found;
+        if(verbose) barcodes_found.clear();    
         for(int64_t barcode_idx = 0; barcode_idx < barcodes.size(); barcode_idx++){
             int64_t occurrences = 0;
-            occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_border_arrays[barcode_idx]).size();
-            occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_rc_border_arrays[barcode_idx]).size();
+            //occurrences += kmp(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len, barcode_border_arrays[barcode_idx]);
+            //occurrences += kmp(barcodes_rc[barcode_idx].c_str(), barcodes_rc[barcode_idx].size(), seq, len, barcode_rc_border_arrays[barcode_idx]);
+            occurrences += bit_parallel_matching(barcodes[barcode_idx].c_str(), barcodes[barcode_idx].size(), seq, len);
+            occurrences += bit_parallel_matching(barcodes_rc[barcode_idx].c_str(), barcodes_rc[barcode_idx].size(), seq, len);
             barcode_counts[barcode_idx] += occurrences;
-            if(occurrences > 0) barcodes_found.push_back(barcode_idx);
+            if(verbose && occurrences > 0) barcodes_found.push_back(barcode_idx);
         }
 
-        if(barcodes_found.size() > 1){
+        if(verbose && barcodes_found.size() > 1){
             cout << "Multiple barcodes in a sequence: " << seq << endl;
             cout << "^ Had barcodes:";
             for(int64_t b : barcodes_found) cout << " " << b;
