@@ -84,23 +84,29 @@ int main(int argc, char** argv){
 
     SeqIO::Reader<> in(seq_file);
 
-    vector<int64_t> barcode_counts(n_barcodes);
-    vector<int64_t> barcodes_found; // Used only in verbose mode
+    vector<int64_t> global_counts(n_barcodes);
+
+    // Marks for which barcodes have been found in the current sequence. Cleared between each sequence
+    vector<bool> barcodes_found_marks(n_barcodes, 0);
+
+    // List of distinct barcodes found in the current sequence
+    vector<int64_t> barcodes_found; 
+
     while(true){
         int64_t len = in.get_next_read_to_buffer();
         if(len == 0) break;
         char* seq = in.read_buf;
         
-        if(verbose) barcodes_found.clear();    
-
         auto AC_result = trie.parse_text(seq);
         for(auto x : AC_result){
-
             // The modulo is to map the reverse complement barcodes to the same barcode as the original
             int64_t barcode_idx = x.get_index() % n_barcodes;
 
-            barcode_counts[barcode_idx]++;
-            if(verbose) barcodes_found.push_back(barcode_idx);
+            global_counts[barcode_idx]++;
+            if(barcodes_found_marks[barcode_idx] == 0){
+                barcodes_found.push_back(barcode_idx);
+                barcodes_found_marks[barcode_idx] = 1;
+            }
         }
 
         if(verbose && barcodes_found.size() > 1){
@@ -109,10 +115,15 @@ int main(int argc, char** argv){
             for(int64_t b : barcodes_found) cout << " " << b;
             cout << endl;
         }
+
+        // Clear found barcodes
+        for(int64_t x : barcodes_found)
+            barcodes_found_marks[x] = 0;
+        barcodes_found.clear();
     }
 
-    for(int64_t i = 0; i < barcode_counts.size(); i++){
-        cout << "Barcode " << i << ": " << barcode_counts[i] << endl;
+    for(int64_t i = 0; i < global_counts.size(); i++){
+        cout << "Barcode " << i << ": " << global_counts[i] << endl;
     }
 
 }
