@@ -84,13 +84,13 @@ int main(int argc, char** argv){
 
     SeqIO::Reader<> in(seq_file);
 
-    vector<int64_t> global_counts(n_barcodes);
-
-    // Marks for which barcodes have been found in the current sequence. Cleared between each sequence
-    vector<bool> barcodes_found_marks(n_barcodes, 0);
+    vector<int64_t> global_counts(n_barcodes); // Counts of barcodes in all sequences
+    vector<int64_t> local_counts(n_barcodes); // Counts of barcodes in the current sequence
 
     // List of distinct barcodes found in the current sequence
-    vector<int64_t> barcodes_found; 
+    vector<int64_t> local_barcodes_found;
+
+    int64_t n_seqs_with_multiple_barcodes = 0;
 
     while(true){
         int64_t len = in.get_next_read_to_buffer();
@@ -102,28 +102,38 @@ int main(int argc, char** argv){
             // The modulo is to map the reverse complement barcodes to the same barcode as the original
             int64_t barcode_idx = x.get_index() % n_barcodes;
 
-            global_counts[barcode_idx]++;
-            if(barcodes_found_marks[barcode_idx] == 0){
-                barcodes_found.push_back(barcode_idx);
-                barcodes_found_marks[barcode_idx] = 1;
+            //global_counts[barcode_idx]++;
+            if(local_counts[barcode_idx] == 0){
+                local_barcodes_found.push_back(barcode_idx);
+                local_counts[barcode_idx]++;
             }
         }
 
-        if(verbose && barcodes_found.size() > 1){
-            cout << "Multiple barcodes in a sequence: " << seq << endl;
-            cout << "^ Had barcodes:";
-            for(int64_t b : barcodes_found) cout << " " << b;
-            cout << endl;
+        if(local_barcodes_found.size() >= 2){
+            // Multiple distinct barcodes in this sequence
+            n_seqs_with_multiple_barcodes++;
+            if(verbose){
+                cout << "Mixed barcodes in sequence: " << in.header_buf << "\n";
+                cout << "Found barcodes: ";
+                for(int64_t i = 0; i < local_barcodes_found.size(); i++)
+                    cout << (i == 0 ? "" : " ") << local_barcodes_found[i];
+                cout << "\n";
+            }
+        } else{
+            // Add local counts to global counts
+            for(int64_t x : local_barcodes_found){
+                global_counts[x] += local_counts[x];
+            }
         }
 
-        // Clear found barcodes
-        for(int64_t x : barcodes_found)
-            barcodes_found_marks[x] = 0;
-        barcodes_found.clear();
+        // Clear local counters
+        for(int64_t x : local_barcodes_found) local_counts[x] = 0;
+        local_barcodes_found.clear();
     }
 
     for(int64_t i = 0; i < global_counts.size(); i++){
         cout << "Barcode " << i << ": " << global_counts[i] << endl;
     }
+    cout << "Mixed: " << n_seqs_with_multiple_barcodes << endl;
 
 }
