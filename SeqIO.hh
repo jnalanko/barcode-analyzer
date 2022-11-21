@@ -88,12 +88,7 @@ public:
         // get_next_read_to_buffer is written such that it's ok.
     }
 
-    // mode should be FASTA_MODE or FASTQ_MODE
-    // Note: FASTQ mode does not support multi-line FASTQ
-    Reader(string filename, LL mode) : stream(filename, ios::binary), mode(mode) {
-        if(mode != FASTA && mode != FASTQ)
-            throw std::invalid_argument("Unkown sequence format");
-        
+    void init_buffers(){
         read_buf_cap = 256;
         read_buf = (char*)malloc(read_buf_cap);
 
@@ -102,7 +97,15 @@ public:
 
         qual_buf_cap = 256;
         qual_buf = (char*)malloc(qual_buf_cap);
+    }
 
+    // mode should be FASTA_MODE or FASTQ_MODE
+    // Note: FASTQ mode does not support multi-line FASTQ
+    Reader(string filename, LL mode) : stream(filename, ios::binary), mode(mode) {
+        if(mode != FASTA && mode != FASTQ)
+            throw std::invalid_argument("Unkown sequence format");
+        
+        init_buffers();
         read_first_char_and_sanity_check();
     }
 
@@ -114,12 +117,7 @@ public:
         else if(fileformat.format == FASTQ) mode = FASTQ;
         else throw(runtime_error("Unknown file format: " + filename));
 
-        read_buf_cap = 256;
-        read_buf = (char*)malloc(read_buf_cap);
-
-        header_buf_cap = 256;
-        header_buf = (char*)malloc(header_buf_cap);
-
+        init_buffers();
         read_first_char_and_sanity_check();
     }
 
