@@ -85,8 +85,8 @@ void run(const string& seq_file, const string& barcode_file, ostream& output, bo
             //global_counts[barcode_idx]++;
             if(local_counts[barcode_idx] == 0){
                 local_barcodes_found.push_back(barcode_idx);
-                local_counts[barcode_idx]++;
             }
+            local_counts[barcode_idx]++;
         }
 
         if(local_barcodes_found.size() >= 2){
