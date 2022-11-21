@@ -165,9 +165,10 @@ int filter_main(int argc, char** argv){
 int main(int argc, char** argv){
 
     vector<string> commands = {"analyze", "filter"};
-    if(argc == 1){
+    if(argc == 1 || argv[1] == string("--help") || argv[1] == string("-h")){
         cerr << "Available commands: " << endl;
         for(string S : commands) cerr << "   " << argv[0] << " " << S << endl;
+        cerr << "Running a command without arguments prints the usage instructions for the command." << endl;
         return 1;
     }
 
