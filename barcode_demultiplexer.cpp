@@ -46,7 +46,7 @@ vector<string> read_lines(string filename){
     return lines;
 }
 
-void run(const string& seq_file, const string& barcode_file, ostream& output, bool verbose){
+void analyze(const string& seq_file, const string& barcode_file, ostream& output, bool verbose){
 
     vector<string> barcodes = read_lines(barcode_file);
     int64_t n_barcodes = barcodes.size();
@@ -118,9 +118,8 @@ void run(const string& seq_file, const string& barcode_file, ostream& output, bo
     output << "Mixed: " << n_seqs_with_multiple_barcodes << endl;
 }
 
-int main(int argc, char** argv){
-
-    cxxopts::Options opts(argv[0], "Barcode demultiplexing");
+int analyze_main(int argc, char** argv){
+    cxxopts::Options opts(argv[0], "Search for barcode sequences inside a fasta/fastq file.");
 
     opts.add_options()
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
@@ -148,10 +147,42 @@ int main(int argc, char** argv){
     }
     bool verbose = opts_parsed["v"].as<bool>();
 
-    if(to_stdout) run(seq_file, barcode_file, cout, verbose);
+    if(to_stdout) analyze(seq_file, barcode_file, cout, verbose);
     else{
         ofstream out(output_file);
-        run(seq_file, barcode_file, out, verbose);
+        analyze(seq_file, barcode_file, out, verbose);
     }
 
+    return 0;
+
+}
+
+int filter_main(int argc, char** argv){
+    return 0;
+}
+
+
+int main(int argc, char** argv){
+
+    vector<string> commands = {"analyze", "filter"};
+    if(argc == 1){
+        cerr << "Available commands: " << endl;
+        for(string S : commands) cerr << "   " << argv[0] << " " << S << endl;
+        return 1;
+    }
+
+    string command = argv[1];
+
+    // Drop the first element of argv
+    for(int64_t i = 1; i < argc; i++) argv[i-1] = argv[i];
+    argc--;
+
+    if(command == "analyze") analyze_main(argc, argv);
+    else if(command == "filter") filter_main(argc, argv);
+    else{
+        cerr << "Invalid command " << command << endl;
+        return 1;
+    }
+
+    return 0;
 }
