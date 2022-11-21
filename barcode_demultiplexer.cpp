@@ -46,8 +46,10 @@ vector<string> read_lines(string filename){
     return lines;
 }
 
-void analyze(const string& seq_file, const string& barcode_file, ostream& output, bool verbose){
-
+// Returns the Aho_Corasick trie and the number of barcodes. The reverse complement
+// of each barcode is added to the trie, but the number of barcodes returned does
+// not include the reverse complements.
+pair<std::shared_ptr<aho_corasick::trie>, int64_t> get_aho_corasick_trie(const string& barcode_file){
     vector<string> barcodes = read_lines(barcode_file);
     int64_t n_barcodes = barcodes.size();
 
@@ -59,9 +61,15 @@ void analyze(const string& seq_file, const string& barcode_file, ostream& output
     }
         
     // Build the Aho-Corasick trie
-    aho_corasick::trie trie;
-    for(const string& B : barcodes) trie.insert(B);
+    std::shared_ptr<aho_corasick::trie> trie = std::make_shared<aho_corasick::trie>();
+    for(const string& B : barcodes) trie->insert(B);
+    return {trie, n_barcodes};
+}
 
+void analyze(const string& seq_file, const string& barcode_file, ostream& output, bool verbose){
+
+    std::shared_ptr<aho_corasick::trie> trie; int64_t n_barcodes;
+    std::tie(trie, n_barcodes) = get_aho_corasick_trie(barcode_file);
     SeqIO::Reader<> in(seq_file);
 
     vector<int64_t> global_counts(n_barcodes); // Counts of barcodes in all sequences
@@ -77,7 +85,7 @@ void analyze(const string& seq_file, const string& barcode_file, ostream& output
         if(len == 0) break;
         char* seq = in.read_buf;
         
-        auto AC_result = trie.parse_text(seq);
+        auto AC_result = trie->parse_text(seq);
         for(auto x : AC_result){
             // The modulo is to map the reverse complement barcodes to the same barcode as the original
             int64_t barcode_idx = x.get_index() % n_barcodes;
@@ -159,7 +167,7 @@ int analyze_main(int argc, char** argv){
 
 
 void filter_barcodes(const string& seq_file, const string& barcode_file, ostream& output){
-    
+
 }
 
 int filter_main(int argc, char** argv){
@@ -169,7 +177,6 @@ int filter_main(int argc, char** argv){
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
         ("o", "Output file. If not given, prints to stdout.", cxxopts::value<string>())
         ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
-//        ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
 
