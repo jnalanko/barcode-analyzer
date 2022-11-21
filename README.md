@@ -26,7 +26,8 @@ Usage:
 
   -i arg         The sequence file in fasta or fastq format.
   -o arg         Output file. If not given, prints to stdout.
-  -b arg         A file containing the barcodes, one per line.
+  -b arg         A file containing the barcodes, one per line. Do not give 
+                 reverse complements.
   -v, --verbose  Verbose output.
   -h, --help     Print usage
 ```
@@ -34,13 +35,14 @@ Usage:
 ### Filter
 
 ```
-Remove all sequence from a fasta/fastq file that have a barcode sequence.
+Remove all sequences from a fasta/fastq file that have a barcode sequence.
 Usage:
   filter [OPTION...]
 
   -i arg      The sequence file in fasta or fastq format.
   -o arg      Output file.
-  -b arg      A file containing the barcodes, one per line.
+  -b arg      A file containing the barcodes, one per line. Do not give 
+              reverse complements.
   -h, --help  Print usage
 ```
 

@@ -132,7 +132,7 @@ int analyze_main(int argc, char** argv){
     opts.add_options()
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
         ("o", "Output file. If not given, prints to stdout.", cxxopts::value<string>())
-        ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
+        ("b", "A file containing the barcodes, one per line. Do not give reverse complements.", cxxopts::value<string>())
         ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
@@ -195,12 +195,12 @@ void filter_barcodes(const string& seq_file, const string& barcode_file, const s
 }
 
 int filter_main(int argc, char** argv){
-    cxxopts::Options opts(argv[0], "Remove all sequence from a fasta/fastq file that have a barcode sequence.");
+    cxxopts::Options opts(argv[0], "Remove all sequences from a fasta/fastq file that have a barcode sequence.");
 
     opts.add_options()
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
         ("o", "Output file.", cxxopts::value<string>())
-        ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
+        ("b", "A file containing the barcodes, one per line. Do not give reverse complements.", cxxopts::value<string>())
         ("h,help", "Print usage")
     ;
 
