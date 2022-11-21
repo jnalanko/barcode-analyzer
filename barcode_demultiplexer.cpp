@@ -166,8 +166,33 @@ int analyze_main(int argc, char** argv){
 }
 
 
-void filter_barcodes(const string& seq_file, const string& barcode_file, ostream& output){
+void filter_barcodes(const string& seq_file, const string& barcode_file, const string& out_file){
+    std::shared_ptr<aho_corasick::trie> trie; int64_t n_barcodes;
+    std::tie(trie, n_barcodes) = get_aho_corasick_trie(barcode_file);
+    SeqIO::Reader<> in(seq_file);
+    SeqIO::Writer<> out(out_file);
 
+    int64_t n_seqs_read = 0;
+    int64_t n_seqs_filtered = 0;
+    while(true){
+        int64_t len = in.get_next_read_to_buffer();
+        if(len == 0) break;
+
+        n_seqs_read++;
+        const char* seq = in.read_buf;
+        const char* header = in.header_buf;
+        const char* qual = in.qual_buf;
+
+        auto AC_result = trie->parse_text(seq);
+        int64_t n_filtered = 0;
+        if(AC_result.size() == 0){
+            // No barcodes -> write to output
+            out.write_sequence(seq, len, qual, header, strlen(header));
+        } else n_seqs_filtered++;
+    } 
+
+    cerr << "Number of sequences read: " << n_seqs_read << endl;
+    cerr << "Number of reads filtered: " << n_seqs_filtered << endl;
 }
 
 int filter_main(int argc, char** argv){
@@ -175,7 +200,7 @@ int filter_main(int argc, char** argv){
 
     opts.add_options()
         ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
-        ("o", "Output file. If not given, prints to stdout.", cxxopts::value<string>())
+        ("o", "Output file.", cxxopts::value<string>())
         ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
         ("h,help", "Print usage")
     ;
@@ -191,18 +216,9 @@ int filter_main(int argc, char** argv){
     bool to_stdout = false;
     string seq_file = opts_parsed["i"].as<string>();
     string barcode_file = opts_parsed["b"].as<string>();
-    string output_file;
-    try{
-        output_file = opts_parsed["o"].as<string>();
-    } catch(cxxopts::exceptions::option_has_no_value& e){
-        to_stdout = true;
-    }
+    string output_file = opts_parsed["o"].as<string>();
 
-    if(to_stdout) filter_barcodes(seq_file, barcode_file, cout);
-    else{
-        ofstream out(output_file);
-        filter_barcodes(seq_file, barcode_file, out);
-    }
+    filter_barcodes(seq_file, barcode_file, output_file);
 
     return 0;
 }

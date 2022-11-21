@@ -246,8 +246,10 @@ public:
 template<typename ofstream_t = Buffered_ofstream<std::ofstream>> // The underlying file stream.
 class Writer{
 
-    string fasta_header = ">\n";
-    string fastq_header = "@\n";
+    string empty_fasta_header = ">\n";
+    string empty_fastq_header = "@\n";
+    string greater_than = ">";
+    string at_sign = "@";
     string newline = "\n";
     string plus = "+";
 
@@ -267,12 +269,12 @@ class Writer{
     void write_sequence(const char* seq, LL len){
         if(mode == FASTA){
             // FASTA format
-            out.write(fasta_header.c_str(), 2);
+            out.write(empty_fasta_header.c_str(), 2);
             out.write(seq, len);
             out.write(newline.c_str(), 1);
         } else{
             // FASTQ
-            out.write(fastq_header.c_str(), 2);
+            out.write(empty_fastq_header.c_str(), 2);
             out.write(seq, len);
             out.write(newline.c_str(), 1);
             out.write(plus.c_str(), 1);
@@ -282,20 +284,36 @@ class Writer{
         }
     }
 
-    void write_sequence(const char* seq, const char* qual, LL len){
+    void write_sequence(const char* seq, LL seq_len, const char* qual, const char* header, LL header_len){
         if(mode == FASTA){
             // FASTA format
-            out.write(fasta_header.c_str(), 2);
-            out.write(seq, len);
+
+            // Header
+            out.write(greater_than.c_str(), 1);
+            out.write(header, header_len);
+            out.write(newline.c_str(), 1);
+
+            // Sequence
+            out.write(seq, seq_len);
             out.write(newline.c_str(), 1);
         } else{
             // FASTQ
-            out.write(fastq_header.c_str(), 2);
-            out.write(seq, len);
+
+            // Header
+            out.write(at_sign.c_str(), 1);
+            out.write(header, header_len);
             out.write(newline.c_str(), 1);
+
+            // Sequence
+            out.write(seq, seq_len);
+            out.write(newline.c_str(), 1);
+
+            // "+"
             out.write(plus.c_str(), 1);
             out.write(newline.c_str(), 1);
-            out.write(qual, len);
+
+            // Quality values
+            out.write(qual, seq_len); // The length of the quality line is the same the length of the sequence line
             out.write(newline.c_str(), 1);
         }
     }
