@@ -68,11 +68,13 @@ ifstream_t stream;
 LL mode;
 LL read_buf_cap;
 LL header_buf_cap;
+LL qual_buf_cap;
 
 public:
 
     char* read_buf; // Stores a sequence read
     char* header_buf; // Stores the header of a read (without the '>' or '@')
+    char* qual_buf; // Stores the quality values of a read. Only used in fastq mode.
 
     void read_first_char_and_sanity_check(){
         
@@ -97,6 +99,9 @@ public:
 
         header_buf_cap = 256;
         header_buf = (char*)malloc(header_buf_cap);
+
+        qual_buf_cap = 256;
+        qual_buf = (char*)malloc(qual_buf_cap);
 
         read_first_char_and_sanity_check();
     }
@@ -192,6 +197,7 @@ public:
             }
             header_buf[header_length-1] = '\0'; // Overwrite the newline with a null terminator
 
+            // Read the sequence
             LL buf_pos = 0;
             while(true){
                 stream.get(&c);
@@ -207,8 +213,19 @@ public:
             c = 0;
             while(c != '\n') stream.get(&c); // Skip '+'-line
 
+            // Read the quality line
             c = 0;
-            while(c != '\n') stream.get(&c); // Skip quality line
+            LL qual_buf_pos = 0;
+            while(true){
+                stream.get(&c);
+                if(c == '\n') break; // End of quality line
+                if(qual_buf_pos + 1 >= qual_buf_cap) { // +1: space for null terminator
+                    qual_buf_cap *= 2;
+                    qual_buf = (char*)realloc(qual_buf, qual_buf_cap);
+                }
+                qual_buf[qual_buf_pos++] = c;
+            }
+            qual_buf[qual_buf_pos] = '\0';
 
             stream.get(&c); // Consume the '@' of the next read. If no more reads left, sets the eof flag.
 

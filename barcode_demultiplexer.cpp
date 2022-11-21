@@ -157,7 +157,46 @@ int analyze_main(int argc, char** argv){
 
 }
 
+
+void filter_barcodes(const string& seq_file, const string& barcode_file, ostream& output){
+    
+}
+
 int filter_main(int argc, char** argv){
+    cxxopts::Options opts(argv[0], "Remove all sequence from a fasta/fastq file that have a barcode sequence.");
+
+    opts.add_options()
+        ("i", "The sequence file in fasta or fastq format.", cxxopts::value<string>())
+        ("o", "Output file. If not given, prints to stdout.", cxxopts::value<string>())
+        ("b", "A file containing the barcodes, one per line.", cxxopts::value<string>())
+//        ("v,verbose", "Verbose output.", cxxopts::value<bool>()->default_value("false"))
+        ("h,help", "Print usage")
+    ;
+
+    auto opts_parsed = opts.parse(argc, argv);
+
+    if (argc == 1 || opts_parsed.count("help")){
+        std::cerr << opts.help() << std::endl;
+        return 1;
+    }
+
+
+    bool to_stdout = false;
+    string seq_file = opts_parsed["i"].as<string>();
+    string barcode_file = opts_parsed["b"].as<string>();
+    string output_file;
+    try{
+        output_file = opts_parsed["o"].as<string>();
+    } catch(cxxopts::exceptions::option_has_no_value& e){
+        to_stdout = true;
+    }
+
+    if(to_stdout) filter_barcodes(seq_file, barcode_file, cout);
+    else{
+        ofstream out(output_file);
+        filter_barcodes(seq_file, barcode_file, out);
+    }
+
     return 0;
 }
 
