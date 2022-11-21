@@ -284,6 +284,24 @@ class Writer{
         }
     }
 
+    void write_sequence(const char* seq, const char* qual, LL len){
+        if(mode == FASTA){
+            // FASTA format
+            out.write(fasta_header.c_str(), 2);
+            out.write(seq, len);
+            out.write(newline.c_str(), 1);
+        } else{
+            // FASTQ
+            out.write(fastq_header.c_str(), 2);
+            out.write(seq, len);
+            out.write(newline.c_str(), 1);
+            out.write(plus.c_str(), 1);
+            out.write(newline.c_str(), 1);
+            out.write(qual, len);
+            out.write(newline.c_str(), 1);
+        }
+    }
+
     // Flush the stream. The stream is also automatically flushed when the object is destroyed.
     void flush(){
         out.flush();
