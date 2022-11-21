@@ -2,4 +2,4 @@
 all: barcode_demultiplexer
 
 barcode_demultiplexer:
-	g++ barcode_demultiplexer.cpp SeqIO.cpp -o barcode_demultiplexer -O3 -Wall -std=c++17 -march=native
+	g++ barcode_analyzer.cpp SeqIO.cpp -o barcode_analyzer -O3 -Wall -std=c++17 -march=native

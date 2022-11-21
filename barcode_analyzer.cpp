@@ -103,7 +103,7 @@ void analyze(const string& seq_file, const string& barcode_file, ostream& output
             if(verbose){
                 output << "Mixed barcodes in sequence: " << in.header_buf << "\n";
                 output << "Found barcodes: ";
-                for(int64_t i = 0; i < local_barcodes_found.size(); i++)
+                for(int64_t i = 0; i < (int64_t)local_barcodes_found.size(); i++)
                     output << (i == 0 ? "" : " ") << local_barcodes_found[i];
                 output << "\n";
             }
@@ -119,7 +119,7 @@ void analyze(const string& seq_file, const string& barcode_file, ostream& output
         local_barcodes_found.clear();
     }
 
-    for(int64_t i = 0; i < global_counts.size(); i++){
+    for(int64_t i = 0; i < (int64_t)global_counts.size(); i++){
         // Print barcodes in 1-based indexing
         output << "Barcode " << i+1 << ": " << global_counts[i] << endl;
     }
@@ -184,7 +184,6 @@ void filter_barcodes(const string& seq_file, const string& barcode_file, const s
         const char* qual = in.qual_buf;
 
         auto AC_result = trie->parse_text(seq);
-        int64_t n_filtered = 0;
         if(AC_result.size() == 0){
             // No barcodes -> write to output
             out.write_sequence(seq, len, qual, header, strlen(header));
@@ -212,8 +211,6 @@ int filter_main(int argc, char** argv){
         return 1;
     }
 
-
-    bool to_stdout = false;
     string seq_file = opts_parsed["i"].as<string>();
     string barcode_file = opts_parsed["b"].as<string>();
     string output_file = opts_parsed["o"].as<string>();
