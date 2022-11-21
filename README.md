@@ -6,6 +6,20 @@ A fast tool to search for barcode sequences inside fasta/fastq data. Can also re
 
 Compile by running `make`. Compiling requires a C++ compiler with support for the C++17 standard. Tested to work with g++ version 9. 
 
+## Quick start
+
+There is some example data provided in the repository. Running barcode analysis on reads at `example_data/reads.fastq` with barcodes at `example_data/barcodes.txt`:
+
+```
+./barcode_analyzer analyze -i example_data/reads.fastq -b example_data/barcodes.txt
+```
+
+Filtering reads with barcodes with the same inputs, writing output to example_data/filtered.fastq:
+
+```
+./barcode_analyzer filter -i example_data/reads.fastq -b example_data/barcodes.txt -o example_data/filtered.fastq
+```
+
 ## Usage
 
 There are two commands:
