@@ -4,7 +4,7 @@ A fast tool to search for barcode sequences inside fasta/fastq data. Can also re
 
 ## Compiling
 
-The repository is fully self-contained. Compile by running `make`.
+Compile by running `make`. Compiling requires a C++ compiler with support for the C++17 standard. Tested to work with g++ version 9. 
 
 ## Usage
 
