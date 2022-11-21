@@ -112,7 +112,8 @@ void run(const string& seq_file, const string& barcode_file, ostream& output, bo
     }
 
     for(int64_t i = 0; i < global_counts.size(); i++){
-        output << "Barcode " << i << ": " << global_counts[i] << endl;
+        // Print barcodes in 1-based indexing
+        output << "Barcode " << i+1 << ": " << global_counts[i] << endl;
     }
     output << "Mixed: " << n_seqs_with_multiple_barcodes << endl;
 }
